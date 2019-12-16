@@ -80,6 +80,16 @@ the full path to the binary:
 Put it anywhere on your PATH and you will be able to call it as either
 `git-comtemplate` or `git comtemplate`
 
+### Common Issues
+When I tried building it on debian 10, I got the following error:
+
+```
+<lots of output>
+ (ConnectionFailure Network.BSD.getProtocolByName: does not exist (no such protocol name: tcp))
+```
+
+This can be fixed by installing netbase: `apt install netbase`
+
 ## FAQ
 
 <dl>
