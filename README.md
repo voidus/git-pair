@@ -1,4 +1,4 @@
-# git-comtemplate (https://github.com/voidus/git-comtemplate)
+# git-comtemplate
 
 Small utility that prepares commit templates with a story id and co-authors.
 
