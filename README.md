@@ -101,7 +101,7 @@ This can be fixed by installing netbase: `apt install netbase`
     <code>git comtemplate</code> folders and nothing will remain.</dd>
     <dt>This is way too much typing. Why are the names so long?</dt>
     <dd>You can use <code>git-comtemplate s</code> instead of <code>... story</code> as well as <code>a</code>
-    for <code>authors</code>. If you think <i>comtemplate<i> is too long, you can run <code>git
+    for <code>authors</code>. If you think <i>comtemplate</i> is too long, you can run <code>git
     config --global alias.c comtemplate</code> and use <code>git c s STORY-42</code>.
     <br>
     I personally don't bother: I only type this once or twice a day at most.
