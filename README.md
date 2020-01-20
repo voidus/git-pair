@@ -94,15 +94,15 @@ This can be fixed by installing netbase: `apt install netbase`
 
 <dl>
     <dt>I changed my mind, how can I get rid of everything this did?</dt>
-    <dd>Run `git comtemplate`. In the text, it mentions two directories, one for
-    config (probably `~/.config/git-comtemplate`) and one for it's state
-    (probably `~/.local/share/git-comtemplate`). Run `git comtemplate reset` (or
-    unset the `commit.template` git setting yourself) and delete the two
-    `git-comtemplate` folders and nothing will remain.</dd>
+    <dd>Run <code>git comtemplate</code>. In the text, it mentions two directories, one for
+    config (probably <code>~/.config/git comtemplate</code>) and one for it's state
+    (probably <code>~/.local/share/git comtemplate</code>). Run <code>git comtemplate reset</code> (or
+    unset the <code>commit.template</code> git setting yourself) and delete the two
+    <code>git comtemplate</code> folders and nothing will remain.</dd>
     <dt>This is way too much typing. Why are the names so long?</dt>
-    <dd>You can use `git comtemplate s` instead of `... story` as well as `a`
-    for `authors`. If you think `comtemplate` is too long, you can run `git
-    config --global alias.c comtemplate` and use `git c s STORY-42`.
+    <dd>You can use <code>git-comtemplate s</code> instead of <code>... story</code> as well as <code>a</code>
+    for <code>authors</code>. If you think <i>comtemplate<i> is too long, you can run <code>git
+    config --global alias.c comtemplate</code> and use <code>git c s STORY-42</code>.
     <br>
     I personally don't bother: I only type this once or twice a day at most.
     🤷</dd>
@@ -111,7 +111,7 @@ This can be fixed by installing netbase: `apt install netbase`
     complexity of supporting different templates. The problem isn't so much the
     templating itself but the configuration around it.
     <br>
-    Right now, `git-comtemplate` has very narrowly defined code paths, and
+    Right now, <code>git-comtemplate` has very narrowly defined code paths, and
     I would prefer to keep it this way. Maybe you can fork this project? If you
     are ready to put a few minutes in, open an issue and we'll talk about it.
 </dl>
