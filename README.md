@@ -100,11 +100,13 @@ This can be fixed by installing netbase: `apt install netbase`
     unset the <code>commit.template</code> git setting yourself) and delete the two
     <code>git comtemplate</code> folders and nothing will remain.</dd>
     <dt>This is way too much typing. Why are the names so long?</dt>
-    <dd>You can use <code>git-comtemplate s</code> instead of <code>... story</code> as well as <code>a</code>
-    for <code>authors</code>. If you think <i>comtemplate<i> is too long, you can run <code>git
-    config --global alias.c comtemplate</code> and use <code>git c s STORY-42</code>.
+    <dd>You can use `git comtemplate s` instead of `... story` as well as `a`
+    for `authors`. If you think `comtemplate` is too long, you can run `git
+    config --global alias.ctp comtemplate` and use `git ctp s STORY-42`.
     <br>
-    I personally don't bother: I only type this once or twice a day at most.
+    Given that you will probably use this in a team, I suggest you agree on an
+    alias to facilitate pairing. My proposal is <code>git ctp</code>, which can be set up
+    with the above commands.
     🤷</dd>
     <dt>This is great, but I want to use a different template</dt>
     <dd>I am sure you have a valid reason, but I would rather not add the
