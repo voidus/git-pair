@@ -106,16 +106,16 @@ This can be fixed by installing netbase: `apt install netbase`
     <br>
     Given that you will probably use this in a team, I suggest you agree on an
     alias to facilitate pairing. My proposal is <code>git ctp</code>, which can be set up
-    with the above commands.
-    🤷</dd>
+    with the above commands.</dd>
     <dt>This is great, but I want to use a different template</dt>
     <dd>I am sure you have a valid reason, but I would rather not add the
     complexity of supporting different templates. The problem isn't so much the
     templating itself but the configuration around it.
     <br>
-    Right now, <code>git-comtemplate` has very narrowly defined code paths, and
+    Right now, <code>git-comtemplate</code> has very narrowly defined code paths, and
     I would prefer to keep it this way. Maybe you can fork this project? If you
     are ready to put a few minutes in, open an issue and we'll talk about it.
+    </dd>
 </dl>
 
 
