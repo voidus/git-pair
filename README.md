@@ -25,7 +25,7 @@ Co-authored-by: Jake the Dog <jake@also.thetreehouse.com>
 ```
 
 There is even a space after the colon: If you're using vim, you can just press
-A end start typing.
+A and start typing.
 
 *Slightest of Warnings*: `git-comtemplate` will overwrite your user
 `commit.template` setting. If you are using this for something else, this
