@@ -1,30 +1,22 @@
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 module Main
   ( main,
   )
 where
 
-import Control.Applicative ((<|>))
+import Prelude hiding (State)
+
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as LBS
-import Data.Either (partitionEithers)
-import Data.List.NonEmpty (NonEmpty, nonEmpty)
 import qualified Data.List.NonEmpty as NonEmpty
-import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Data.Version (showVersion)
 import qualified Dhall
-import GHC.Generics (Generic)
 import qualified Options.Applicative as O
 import qualified Options.Applicative.Help.Pretty as Pretty
-import Paths_git_comtemplate (version)
+import Paths_git_pair (version)
 import System.Directory
   ( XdgDirectory (XdgConfig, XdgData),
     createDirectoryIfMissing,
@@ -32,10 +24,13 @@ import System.Directory
     getXdgDirectory,
     removeFile,
   )
-import System.Exit (ExitCode (ExitFailure), die)
+import System.Exit (ExitCode (ExitFailure))
 import System.FilePath ((</>))
 import System.Process (callCommand, createProcess, shell, waitForProcess)
+import qualified Data.String as String
+import Dhall (FromDhall)
 
+type Command :: Type
 data Command
   = CmdReset
   | CmdAuthors [Text]
@@ -43,20 +38,20 @@ data Command
   | CmdStory Text
   | CmdUnsetStory
   | CmdCreateExampleAuthorsFile
-  deriving (Show)
+  deriving stock (Show)
 
-projectName :: String
-projectName = "git-comtemplate"
+projectName :: Text
+projectName = "git-pair"
 
 getConfigDir :: IO FilePath
 getConfigDir = do
-  configDir <- getXdgDirectory XdgConfig projectName
+  configDir <- getXdgDirectory XdgConfig $ toString projectName
   createDirectoryIfMissing True configDir
   return configDir
 
 getDataDir :: IO FilePath
 getDataDir = do
-  dataDir <- getXdgDirectory XdgData projectName
+  dataDir <- getXdgDirectory XdgData $ toString projectName
   createDirectoryIfMissing True dataDir
   return dataDir
 
@@ -68,12 +63,14 @@ getStateFilename :: IO FilePath
 getStateFilename =
   fmap (</> "state") getDataDir
 
+type State :: Type
 data State
   = State
       { story :: Maybe Text,
         authors :: [Author]
       }
-  deriving (Generic, Aeson.FromJSON, Aeson.ToJSON)
+  deriving stock (Generic)
+  deriving anyclass (Aeson.FromJSON, Aeson.ToJSON)
 
 initialState :: State
 initialState = State {story = Nothing, authors = []}
@@ -97,7 +94,7 @@ readState = do
         Right state -> return state
         Left err ->
           die $
-            unlines
+            String.unlines
               [ "Error while reading " <> stateFilename <> ": " <> err,
                 "You can remove the file to reset the state.",
                 "If this error persists, please open an issue with git"
@@ -200,26 +197,28 @@ helpFooter = do
   authorsFilename <- getAuthorsFilename
   return
     $ Pretty.string
-    $ unlines
+    $ String.unlines
       [ "Running each command with -h or without any arguments will show more help text.",
         "",
-        "Author initials are read from \"" <> authorsFilename <> "\".",
+        "Author initials are read from \"" <> toString authorsFilename <> "\".",
         "It is expected to be a dhall file (https://dhall-lang.org/) containing a list of authors",
         "to what should be used in the commit message.",
         "",
-        "All files managed by " <> projectName <> " are placed in " <> dataDir <> ".",
+        "All files managed by " <> toString projectName <> " are placed in " <> dataDir <> ".",
         "",
-        "This is " <> projectName <> " version " <> showVersion version <> ". ",
+        "This is " <> toString projectName <> " version " <> showVersion version <> ". ",
         "",
-        "In case of bugs, weirdness or great ideas, create an issue at https://github.com/voidus/git-comtemplate"
+        "In case of bugs, weirdness or great ideas, create an issue at https://github.com/voidus/git-pair"
       ]
 
+type Author :: Type
 data Author
   = Author
       { initials :: Text,
         expanded :: Text
       }
-  deriving (Generic, Dhall.Interpret, Aeson.FromJSON, Aeson.ToJSON)
+  deriving stock (Generic)
+  deriving anyclass (FromDhall, Aeson.FromJSON, Aeson.ToJSON)
 
 getAuthorsFilename :: IO FilePath
 getAuthorsFilename =
@@ -249,7 +248,7 @@ updateTemplate State {story, authors} = do
     storyLine =
       case story of
         Nothing -> ""
-        Just s -> s <> ": "
+        Just s -> "#" <> s
     authorPrefix =
       if length authors > 1
         then "Co-authored-by: "
@@ -266,7 +265,7 @@ setGitConfigOption = do
 unsetGitConfigOption :: IO ()
 unsetGitConfigOption = do
   let commandLine = "git config --global --unset commit.template"
-  (_, _, _, handle) <- createProcess (shell commandLine)
+  (_, _, _, handle) <- createProcess (shell $ toString commandLine)
   exit <- waitForProcess handle
   case exit of
     ExitFailure code

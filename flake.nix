@@ -6,7 +6,7 @@
     flake-utils.lib.eachDefaultSystem
       (system:
         let
-          name = "git-comtemplate";
+          name = "git-pair";
 
           pkgs = nixpkgs.legacyPackages.${system};
 
@@ -14,12 +14,16 @@
           inherit (pkgs.haskell.lib) packageSourceOverrides justStaticExecutables;
 
           hspkgs = pkgs.haskellPackages.extend (composeManyExtensions [
-            (packageSourceOverrides {
-              ${name} = ./.;
+            (self: super: {
+              ${name} = self.callCabal2nix name ./. {};
             })
+            # (packageSourceOverrides {
+            #   ${name} = ./.;
+            # })
           ]);
         in
         {
+          inherit pkgs hspkgs;
           packages = {
             ${name} = justStaticExecutables hspkgs.${name};
             default = self.packages.${system}.${name};

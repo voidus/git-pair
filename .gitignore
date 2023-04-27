@@ -1,4 +1,4 @@
 .stack-work
-*.cabal
 .direnv
 dist-newstyle
+result
