@@ -140,7 +140,7 @@ command =
           (O.progDesc "Create an example authors file (won't overwrite anything)")
    in O.hsubparser
         ( O.command "reset" resetInfo
-            <> O.command "configure-git" configureGitInfo
+            <> O.command "configureGit" configureGitInfo
             <> O.command "authors" authorsInfo
             <> O.command "story" storyInfo
             <> O.command "exampleAuthorsFile" exampleAuthorsFileInfo
