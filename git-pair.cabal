@@ -1,10 +1,9 @@
 cabal-version: 3.6
-
-name:           git-pair
-version:        1.0.1.0
-license:        GPL-3.0-or-later
-license-file:   LICENSE
-build-type:     Simple
+name:          git-pair
+version:       1.0.1.0
+license:       GPL-3.0-or-later
+license-file:  LICENSE
+build-type:    Simple
 
 common warnings
   -- For details on warnings: https://downloads.haskell.org/~ghc/master/users-guide/using-warnings.html
@@ -33,7 +32,7 @@ common extensions
 
 common base
   build-depends:
-    , base    >=4    && <5
+    , base    >=4   && <5
     , relude  >=1.1 && <1.2
 
   default-language: GHC2021
@@ -41,20 +40,52 @@ common base
     base hiding (Prelude),
     relude (Relude as Prelude)
 
-executable git-pair
-  import: warnings, extensions, base
-  main-is: Main.hs
-  other-modules:
-      Paths_git_pair
-  hs-source-dirs:
-      app
+common lib-deps
   build-depends:
-      aeson >=1.4 && <2.1
-    , bytestring >=0.10 && <0.12
-    , containers >=0.6 && <0.7
-    , dhall >=1.32 && <1.42
-    , directory >=1.3 && <1.4
-    , filepath >=1.4 && <1.5
-    , optparse-applicative >=0.15 && <0.18
-    , process >=1.6 && <1.7
-    , text >=1.2 && <1.3
+    , aeson  >=1.4  && <2.1
+    , dhall  >=1.32 && <1.42
+    , directory             >=1.3  && <1.4
+    , filepath              >=1.4  && <1.5
+    , text                  >=1.2  && <1.3
+
+executable git-pair
+  import:         warnings, extensions, base
+  main-is:        Main.hs
+  other-modules:  Paths_git_pair
+  hs-source-dirs: app
+  build-depends:
+    , aeson
+    , bytestring            >=0.10 && <0.12
+    , containers            >=0.6  && <0.7
+    , directory
+    , dhall
+    , filepath
+    , git-pair
+    , optparse-applicative  >=0.15 && <0.18
+    , process               >=1.6  && <1.7
+    , text
+
+library
+  import:          warnings, extensions, base, lib-deps
+  hs-source-dirs:  src
+  exposed-modules: GitPair
+  other-modules: Paths_git_pair
+
+test-suite spec
+  import: warnings, extensions, base, lib-deps
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  ghc-options: -Wno-missing-export-lists
+  hs-source-dirs:
+    test
+  other-modules:
+    GitPairSpec
+  build-depends:
+      git-pair
+    , tasty >=1.4 && <1.5
+    , tasty-quickcheck >=0.10 && <0.11
+    , QuickCheck >=2.14 && <2.15
+    , quickcheck-text >=0.1 && <0.2
+    -- work around https://github.com/input-output-hk/haskell.nix/issues/839
+    , tasty-discover
+  -- build-tool-depends: tasty-discover:tasty-discover >= 5.0 && < 6.0

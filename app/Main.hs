@@ -1,34 +1,37 @@
-{-# LANGUAGE DeriveAnyClass #-}
 module Main
   ( main,
   )
 where
 
-import Prelude hiding (State)
-
-import qualified Data.Aeson as Aeson
-import qualified Data.ByteString.Lazy as LBS
-import qualified Data.List.NonEmpty as NonEmpty
-import qualified Data.Map.Strict as Map
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
+import Data.Aeson qualified as Aeson
+import Data.ByteString.Lazy qualified as LBS
+import Data.Map.Strict qualified as Map
+import Data.String qualified as String
+import Data.Text qualified as T
+import Data.Text.IO qualified as TIO
 import Data.Version (showVersion)
-import qualified Dhall
-import qualified Options.Applicative as O
-import qualified Options.Applicative.Help.Pretty as Pretty
-import Paths_git_pair (version)
-import System.Directory
-  ( XdgDirectory (XdgConfig, XdgData),
-    createDirectoryIfMissing,
-    doesFileExist,
-    getXdgDirectory,
-    removeFile,
+import Dhall qualified
+import GitPair
+  ( AppState (..),
+    Author (..),
+    getConfigDir,
+    getDataDir,
+    getStateFilename,
+    getTemplateFilename,
+    initialState,
+    projectName,
+    updateTemplate,
   )
+import Options.Applicative qualified as O
+import Options.Applicative.Help.Pretty qualified as Pretty
+import Paths_git_pair (version)
 import System.Exit (ExitCode (ExitFailure))
 import System.FilePath ((</>))
 import System.Process (callCommand, createProcess, shell, waitForProcess)
-import qualified Data.String as String
-import Dhall (FromDhall)
+import System.Directory (doesFileExist, removeFile)
+import Data.Text.IO (hPutStrLn)
+import Control.Exception (try, catch, throwIO)
+import System.IO.Error (isDoesNotExistError)
 
 type Command :: Type
 data Command
@@ -40,41 +43,6 @@ data Command
   | CmdCreateExampleAuthorsFile
   deriving stock (Show)
 
-projectName :: Text
-projectName = "git-pair"
-
-getConfigDir :: IO FilePath
-getConfigDir = do
-  configDir <- getXdgDirectory XdgConfig $ toString projectName
-  createDirectoryIfMissing True configDir
-  return configDir
-
-getDataDir :: IO FilePath
-getDataDir = do
-  dataDir <- getXdgDirectory XdgData $ toString projectName
-  createDirectoryIfMissing True dataDir
-  return dataDir
-
-getTemplateFilename :: IO FilePath
-getTemplateFilename =
-  fmap (</> "template") getDataDir
-
-getStateFilename :: IO FilePath
-getStateFilename =
-  fmap (</> "state") getDataDir
-
-type State :: Type
-data State
-  = State
-      { story :: Maybe Text,
-        authors :: [Author]
-      }
-  deriving stock (Generic)
-  deriving anyclass (Aeson.FromJSON, Aeson.ToJSON)
-
-initialState :: State
-initialState = State {story = Nothing, authors = []}
-
 exampleConfig :: Text
 exampleConfig =
   T.unlines
@@ -83,7 +51,7 @@ exampleConfig =
       "]"
     ]
 
-readState :: IO State
+readState :: IO AppState
 readState = do
   stateFilename <- getStateFilename
   exists <- doesFileExist stateFilename
@@ -101,7 +69,7 @@ readState = do
               ]
     else return initialState
 
-writeState :: State -> IO ()
+writeState :: AppState -> IO ()
 writeState state = do
   stateFilename <- getStateFilename
   Aeson.encodeFile stateFilename state
@@ -195,30 +163,21 @@ helpFooter :: IO Pretty.Doc
 helpFooter = do
   dataDir <- getDataDir
   authorsFilename <- getAuthorsFilename
-  return
-    $ Pretty.string
-    $ String.unlines
-      [ "Running each command with -h or without any arguments will show more help text.",
-        "",
-        "Author initials are read from \"" <> toString authorsFilename <> "\".",
-        "It is expected to be a dhall file (https://dhall-lang.org/) containing a list of authors",
-        "to what should be used in the commit message.",
-        "",
-        "All files managed by " <> toString projectName <> " are placed in " <> dataDir <> ".",
-        "",
-        "This is " <> toString projectName <> " version " <> showVersion version <> ". ",
-        "",
-        "In case of bugs, weirdness or great ideas, create an issue at https://github.com/voidus/git-pair"
-      ]
-
-type Author :: Type
-data Author
-  = Author
-      { initials :: Text,
-        expanded :: Text
-      }
-  deriving stock (Generic)
-  deriving anyclass (FromDhall, Aeson.FromJSON, Aeson.ToJSON)
+  return $
+    Pretty.string $
+      String.unlines
+        [ "Running each command with -h or without any arguments will show more help text.",
+          "",
+          "Author initials are read from \"" <> toString authorsFilename <> "\".",
+          "It is expected to be a dhall file (https://dhall-lang.org/) containing a list of authors",
+          "to what should be used in the commit message.",
+          "",
+          "All files managed by " <> toString projectName <> " are placed in " <> dataDir <> ".",
+          "",
+          "This is " <> toString projectName <> " version " <> showVersion version <> ". ",
+          "",
+          "In case of bugs, weirdness or great ideas, create an issue at https://github.com/voidus/git-pair"
+        ]
 
 getAuthorsFilename :: IO FilePath
 getAuthorsFilename =
@@ -236,27 +195,6 @@ main = do
   oldState <- readState
   runCommand oldState cmd
 
-updateTemplate :: State -> IO ()
-updateTemplate State {story, authors} = do
-  templateFilename <- getTemplateFilename
-  TIO.writeFile templateFilename contents
-  where
-    contents =
-      case nonEmpty authors of
-        Nothing -> storyLine
-        Just authors' -> T.unlines $ [storyLine, ""] <> authorLines authors'
-    storyLine =
-      case story of
-        Nothing -> ""
-        Just s -> "#" <> s
-    authorPrefix =
-      if length authors > 1
-        then "Co-authored-by: "
-        else "Authored-by: "
-    authorLine author = authorPrefix <> expanded author
-    authorLines :: NonEmpty Author -> [Text]
-    authorLines = NonEmpty.toList . fmap authorLine
-
 setGitConfigOption :: IO ()
 setGitConfigOption = do
   templateFilename <- getTemplateFilename
@@ -270,14 +208,20 @@ unsetGitConfigOption = do
   case exit of
     ExitFailure code
       | code /= 5 ->
-        error $ "\"" <> commandLine <> "\" returned unexpected error code " <> show code
+          hPutStrLn stderr $ "\"" <> commandLine <> "\" returned unexpected error code " <> show code
+          -- We continue here anyway to clean up the files at least
     _ -> pure ()
 
-runCommand :: State -> Command -> IO ()
+runCommand :: AppState -> Command -> IO ()
 runCommand _ CmdReset = do
   unsetGitConfigOption
-  removeFile =<< getStateFilename
-  removeFile =<< getTemplateFilename
+
+  let ignoreDoesNotExist e
+        | isDoesNotExistError e = return ()
+        | otherwise = throwIO e
+
+  (removeFile =<< getStateFilename) `catch` ignoreDoesNotExist
+  (removeFile =<< getTemplateFilename) `catch` ignoreDoesNotExist
 runCommand state (CmdStory story) =
   applyState $ state {story = Just story}
 runCommand state CmdUnsetStory =
@@ -294,7 +238,9 @@ runCommand state (CmdAuthors selectedInitials) = do
     (missingInitials, _) -> do
       authorsFilename <- getAuthorsFilename
       die $
-        "I could not find the following initials in " <> authorsFilename <> ": "
+        "I could not find the following initials in "
+          <> authorsFilename
+          <> ": "
           <> T.unpack (T.intercalate ", " missingInitials)
 runCommand _ CmdCreateExampleAuthorsFile = do
   authorsFilename <- getAuthorsFilename
@@ -302,7 +248,9 @@ runCommand _ CmdCreateExampleAuthorsFile = do
   if exists
     then do
       putStrLn $
-        "The authors file (" <> authorsFilename <> ") already exists and \n"
+        "The authors file ("
+          <> authorsFilename
+          <> ") already exists and \n"
           <> "I'm afraid that I might break something if I overwrite it, so I won't 🐥"
       putStrLn ""
       putStrLn "If you need help with the syntax, here is what I would have put in there:"
@@ -314,7 +262,7 @@ runCommand _ CmdCreateExampleAuthorsFile = do
 runCommand state CmdUnsetAuthors =
   applyState $ state {authors = []}
 
-applyState :: State -> IO ()
+applyState :: AppState -> IO ()
 applyState state = do
   writeState state
   updateTemplate state

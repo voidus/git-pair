@@ -12,6 +12,7 @@
 
           inherit (nixpkgs.lib) composeManyExtensions;
           inherit (pkgs.haskell.lib) packageSourceOverrides justStaticExecutables;
+          inherit (flake-utils.lib) mkApp;
 
           hspkgs = pkgs.haskellPackages.extend (composeManyExtensions [
             (self: super: {
@@ -23,17 +24,23 @@
           ]);
         in
         {
-          inherit pkgs hspkgs;
+          # inherit pkgs hspkgs; # convenient for debugging sometimes
+
           packages = {
             ${name} = justStaticExecutables hspkgs.${name};
             default = self.packages.${system}.${name};
+          };
+
+          apps = {
+            ${name} = mkApp { drv = self.packages.${system}.${name}; };
+            default = self.apps.${system}.${name};
           };
 
           devShells.default = hspkgs.shellFor {
             packages = p: [
               p.${name}
             ];
-            extraDependencies = p: { executableHaskellDepends = [ p.relude ]; };
+            # exactDeps = false; # work around https://github.com/input-output-hk/haskell.nix/issues/839
             buildInputs = [
               pkgs.cabal-install
 
