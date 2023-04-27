@@ -30,12 +30,14 @@ import System.FilePath ((</>))
 import System.Process (callCommand, createProcess, shell, waitForProcess)
 import System.Directory (doesFileExist, removeFile)
 import Data.Text.IO (hPutStrLn)
-import Control.Exception (try, catch, throwIO)
+import Control.Exception (catch, throwIO, IOException)
 import System.IO.Error (isDoesNotExistError)
+import GHC.Show (Show(showsPrec), showString)
 
 type Command :: Type
 data Command
   = CmdReset
+  | CmdConfigureGit
   | CmdAuthors [Text]
   | CmdUnsetAuthors
   | CmdStory Text
@@ -78,8 +80,16 @@ command :: O.Parser Command
 command =
   let resetParser :: O.Parser Command
       resetParser = pure CmdReset
+
       resetInfo :: O.ParserInfo Command
       resetInfo = O.info resetParser (O.progDesc "Remove the commit message template")
+
+      configureGitParser :: O.Parser Command
+      configureGitParser = pure CmdConfigureGit
+
+      configureGitInfo :: O.ParserInfo Command
+      configureGitInfo = O.info configureGitParser (O.progDesc "Configure git to use the template")
+
       unsetAuthorsParser :: O.Parser Command
       unsetAuthorsParser =
         O.flag'
@@ -130,6 +140,7 @@ command =
           (O.progDesc "Create an example authors file (won't overwrite anything)")
    in O.hsubparser
         ( O.command "reset" resetInfo
+            <> O.command "configure-git" configureGitInfo
             <> O.command "authors" authorsInfo
             <> O.command "story" storyInfo
             <> O.command "exampleAuthorsFile" exampleAuthorsFileInfo
@@ -183,10 +194,28 @@ getAuthorsFilename :: IO FilePath
 getAuthorsFilename =
   fmap (</> "authors.dhall") getConfigDir
 
+
+type AuthorsFileNotFound :: Type
+newtype AuthorsFileNotFound = AuthorsFileNotFound IOException
+
+instance Show AuthorsFileNotFound where
+  showsPrec d (AuthorsFileNotFound e) =
+    showString $ String.unlines
+      [ "It looks like the authors file does't exist:"
+      , "    " <> show (displayException e)
+      , "Maybe running `git pair exampleAuthorsFile` can help?"
+      ]
+
+instance Exception AuthorsFileNotFound
+
+
 readAuthors :: IO (Map Text Author)
 readAuthors = do
   authorsFilename <- getAuthorsFilename
-  authorsList <- Dhall.inputFile Dhall.auto authorsFilename
+  let mapDoesNotExist e
+        | isDoesNotExistError e = throwIO $ AuthorsFileNotFound e
+        | otherwise = throwIO e
+  authorsList <- Dhall.inputFile Dhall.auto authorsFilename `catch` mapDoesNotExist
   return $ Map.fromList [(initials a, a) | a <- authorsList]
 
 main :: IO ()
@@ -222,6 +251,8 @@ runCommand _ CmdReset = do
 
   (removeFile =<< getStateFilename) `catch` ignoreDoesNotExist
   (removeFile =<< getTemplateFilename) `catch` ignoreDoesNotExist
+runCommand _ CmdConfigureGit = do
+  setGitConfigOption
 runCommand state (CmdStory story) =
   applyState $ state {story = Just story}
 runCommand state CmdUnsetStory =
@@ -266,7 +297,6 @@ applyState :: AppState -> IO ()
 applyState state = do
   writeState state
   updateTemplate state
-  setGitConfigOption
 
 maybeToEither :: a -> Maybe b -> Either a b
 maybeToEither _ (Just r) = Right r
